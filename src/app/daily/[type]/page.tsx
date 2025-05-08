@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import DynamicMetadata from '../../../components/DynamicMetadata';
 import LetterMappings from '../../../components/LetterMappings';
 
 // API endpoints
@@ -10,13 +11,29 @@ const API_ENDPOINTS = {
   cryptoquote: 'https://cryptoquote-worker.akagautam7.workers.dev/',
 };
 
+// SEO metadata for each type
+const solutionMeta = {
+  cryptoquip: {
+    title: 'Today\'s Cryptoquip Solution - Daily Cryptogram Answers',
+    description: 'Get the solution to today\'s Cryptoquip puzzle. Our daily answers help you solve the latest cryptogram puzzles with clear explanations and letter mappings.',
+  },
+  celebrity: {
+    title: 'Today\'s Celebrity Cipher Solution - Famous Quotes Decoded',
+    description: 'Find the solution to today\'s Celebrity Cipher puzzle. Decode famous quotes and sayings from celebrities with our daily cryptogram solution guide.',
+  },
+  cryptoquote: {
+    title: 'Today\'s Cryptoquote Solution - Daily Quote Decoder',
+    description: 'View the solution to today\'s Cryptoquote puzzle. Our daily answers reveal encrypted quotes and their authors with complete letter mappings.',
+  }
+};
+
 // Fallback solution data (used if API fails)
 const fallbackSolutions = {
   cryptoquip: {
     date: 'May 7, 2024',
     puzzle: 'ABC DEFG HIJKLM NOP QRS TUVWXYZ',
     solution: 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG',
-    author: 'King Features Syndicate',
+    author: 'Wordplay Enthusiast',
     hint: 'B = H',
     key: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ -> THEQUICKBROWNFXJMPSVLAZYDG'
   },
@@ -146,7 +163,7 @@ export default function DailySolutionPage({ params }: { params: { type: string }
             }),
             puzzle: data.puzzle,
             solution: data.answer || data.solution, // Some APIs use "answer" instead of "solution"
-            author: data.author || getDefaultAuthor(solutionType),
+            author: data.author || '',
             hint: data.clue || data.hint || '',
             timestamp: data.timestamp
           };
@@ -198,20 +215,6 @@ export default function DailySolutionPage({ params }: { params: { type: string }
       setLetterMapping(mapping);
     }
   }, [solutionData]);
-  
-  // Get default author based on puzzle type
-  const getDefaultAuthor = (type: string): string => {
-    switch (type) {
-      case 'cryptoquip':
-        return 'King Features Syndicate';
-      case 'cryptoquote':
-        return 'Universal Uclick';
-      case 'celebrity':
-        return 'Tribune Content Agency';
-      default:
-        return 'Unknown';
-    }
-  };
   
   // Format the date for display with better styling
   const formatDate = (dateString: string) => {
@@ -272,9 +275,9 @@ export default function DailySolutionPage({ params }: { params: { type: string }
   
   // Get title based on type
   const titles = {
-    cryptoquip: 'Daily Cryptoquip',
-    celebrity: 'Celebrity Cipher',
-    cryptoquote: 'Cryptoquote of the Day'
+    cryptoquip: 'Today\'s Cryptoquip Solution',
+    celebrity: 'Today\'s Celebrity Cipher Solution',
+    cryptoquote: 'Today\'s Cryptoquote Solution'
   };
   
   // Get color scheme based on type
@@ -337,91 +340,104 @@ export default function DailySolutionPage({ params }: { params: { type: string }
   
   // Format the hint or clue for display
   const formattedHint = solutionData.hint || solutionData.clue || '';
+
+  // Get meta title and description
+  const pageTitle = solutionMeta[solutionType]?.title || `${titles[solutionType]} - Cryptogram Solver`;
+  const pageDescription = solutionMeta[solutionType]?.description || `Solution for today's ${solutionType} puzzle - ${formatDate(solutionData.date)}`;
   
   return (
-    <div className="max-w-5xl mx-auto p-6 fade-in">
-      {error && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
-          <p className="text-yellow-700 dark:text-yellow-400">{error}</p>
-        </div>
-      )}
-      
-      <div className={`bg-gradient-to-r ${gradient} rounded-t-2xl p-6 shadow-lg`}>
-        <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-2">
-          {titles[solutionType] || 'Daily Solution'}
-        </h1>
-        <p className="text-white/80 text-center">
-          {formatDate(solutionData.date)} • {solutionData.author || getDefaultAuthor(solutionType)}
-        </p>
-      </div>
-      
-      <div className="bg-white dark:bg-slate-800 rounded-b-2xl shadow-lg p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Today's Puzzle</h2>
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono">
-              {solutionData.puzzle}
-            </div>
-            {formattedHint && (
-              <div className="flex items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                <svg className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm text-yellow-800 dark:text-yellow-200">Hint: {formattedHint}</span>
-              </div>
-            )}
+    <>
+      <DynamicMetadata 
+        title={pageTitle}
+        description={pageDescription}
+        canonicalUrl={`https://cryptogram-solver.vercel.app/daily/${solutionType}`}
+      />
+      <div className="max-w-5xl mx-auto p-6 fade-in">
+        {error && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+            <p className="text-yellow-700 dark:text-yellow-400">{error}</p>
           </div>
-          
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Solution</h2>
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-800 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-medium">
-              {solution}
-            </div>
-            <div className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sm text-blue-800 dark:text-blue-200">By {solutionData.author || getDefaultAuthor(solutionType)}</span>
-            </div>
-            
-            {/* Add Letter Mappings */}
-            <LetterMappings mapping={letterMapping} className="mt-4" />
-          </div>
-        </div>
-      </div>
-      
-      {/* Tabs for different mapping views */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden mb-8">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex">
-            <button
-              className="px-4 py-3 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
-            >
-              Mapping Visualization
-            </button>
-          </nav>
+        )}
+        
+        <div className={`bg-gradient-to-r ${gradient} rounded-t-2xl p-6 shadow-lg`}>
+          <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-2">
+            {titles[solutionType] || 'Daily Solution'}
+          </h1>
+          <p className="text-white/80 text-center">
+            {formatDate(solutionData.date)}
+          </p>
         </div>
         
-        <div className="p-4 space-y-6">
-          {renderWordMapping()}
-          {renderLetterMapping()}
+        <div className="bg-white dark:bg-slate-800 rounded-b-2xl shadow-lg p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Today's Puzzle</h2>
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono">
+                {solutionData.puzzle}
+              </div>
+              {formattedHint && (
+                <div className="flex items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <svg className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-yellow-800 dark:text-yellow-200">Hint: {formattedHint}</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Solution</h2>
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-800 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-medium">
+                {solution}
+              </div>
+              
+              {solutionData.author && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <span className="text-sm text-blue-800 dark:text-blue-200">
+                    Quote by: {solutionData.author}
+                  </span>
+                </div>
+              )}
+              
+              {/* Add Letter Mappings */}
+              <LetterMappings mapping={letterMapping} className="mt-4" />
+            </div>
+          </div>
+        </div>
+        
+        {/* Tabs for different mapping views */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden mb-8">
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="flex">
+              <button
+                className="px-4 py-3 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
+              >
+                Mapping Visualization
+              </button>
+            </nav>
+          </div>
+          
+          <div className="p-4 space-y-6">
+            {renderWordMapping()}
+            {renderLetterMapping()}
+          </div>
+        </div>
+        
+        <div className="flex justify-center space-x-4">
+          <Link 
+            href="/daily"
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+          >
+            Back to Daily Solutions
+          </Link>
+          <Link 
+            href="/solver"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            Try the Solver
+          </Link>
         </div>
       </div>
-      
-      <div className="flex justify-center space-x-4">
-        <Link 
-          href="/daily"
-          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-        >
-          Back to Daily Solutions
-        </Link>
-        <Link 
-          href="/solver"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          Try the Solver
-        </Link>
-      </div>
-    </div>
+    </>
   );
 } 

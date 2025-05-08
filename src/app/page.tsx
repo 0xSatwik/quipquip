@@ -4,6 +4,28 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+// Sample blog post data
+const blogPosts = [
+  {
+    id: 'how-to-solve-cryptograms',
+    title: "How to Solve Cryptograms: A Beginner's Guide",
+    image: '/images/cryptogram-guide.jpg',
+    category: 'Tutorial'
+  },
+  {
+    id: 'famous-cryptograms-history',
+    title: 'Famous Cryptograms That Changed History',
+    image: '/images/cryptogram-history.jpg',
+    category: 'History'
+  },
+  {
+    id: 'advanced-techniques',
+    title: 'Advanced Techniques For Tough Cryptograms',
+    image: '/images/advanced-cryptogram.jpg',
+    category: 'Advanced'
+  }
+];
+
 export default function Home() {
   return (
     <div className="fade-in">
@@ -37,71 +59,89 @@ export default function Home() {
       {/* Features Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-800">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-800 dark:text-white">
-            Everything You Need For Cryptograms
-          </h2>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              Everything You Need For Cryptograms
+            </h2>
+            <div className="h-1 w-24 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 rounded-full mx-auto mb-4"></div>
+            <p className="text-center text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Our comprehensive platform helps you solve, learn, and master cryptogram puzzles with powerful tools and resources
+            </p>
+          </div>
           
           <div className="grid md:grid-cols-3 gap-8">
             {/* Solver Feature */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-200">
-              <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-indigo-100 dark:border-indigo-800/30 relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 w-32 h-32 bg-indigo-400/10 dark:bg-indigo-300/5 rounded-full blur-md -mr-10 -mb-10 group-hover:bg-indigo-400/20 transition-all duration-300"></div>
+              <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg transform group-hover:rotate-3 transition-transform duration-300">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">
+              <h3 className="text-2xl font-bold mb-4 text-indigo-800 dark:text-indigo-300">
                 Powerful Solver
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Our AI-powered solver can quickly decrypt cryptograms of all types with exceptional accuracy.
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Our AI-powered cryptogram solver can crack even the most challenging letter-substitution puzzles with exceptional accuracy in seconds.
               </p>
               <Link 
                 href="/solver" 
-                className="text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-800 dark:hover:text-indigo-300"
+                className="inline-flex items-center text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-800 dark:hover:text-indigo-300 group-hover:translate-x-1 transition-transform duration-300"
               >
-                Try it now →
+                Try it now
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
               </Link>
             </div>
             
             {/* Daily Solutions Feature */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-200">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-purple-100 dark:border-purple-800/30 relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 w-32 h-32 bg-purple-400/10 dark:bg-purple-300/5 rounded-full blur-md -mr-10 -mb-10 group-hover:bg-purple-400/20 transition-all duration-300"></div>
+              <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg transform group-hover:rotate-3 transition-transform duration-300">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">
+              <h3 className="text-2xl font-bold mb-4 text-purple-800 dark:text-purple-300">
                 Daily Solutions
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Get solutions for today's cryptoquips, celebrity ciphers, and cryptoquotes from popular publications.
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Get instant access to today's cryptogram solutions including Cryptoquips, Celebrity Ciphers, and Cryptoquotes updated daily.
               </p>
               <Link 
                 href="/daily" 
-                className="text-purple-600 dark:text-purple-400 font-medium hover:text-purple-800 dark:hover:text-purple-300"
+                className="inline-flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-800 dark:hover:text-purple-300 group-hover:translate-x-1 transition-transform duration-300"
               >
-                See today's puzzles →
+                See today's puzzles
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
               </Link>
             </div>
             
             {/* Guides Feature */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-200">
-              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-emerald-100 dark:border-emerald-800/30 relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 w-32 h-32 bg-emerald-400/10 dark:bg-emerald-300/5 rounded-full blur-md -mr-10 -mb-10 group-hover:bg-emerald-400/20 transition-all duration-300"></div>
+              <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg transform group-hover:rotate-3 transition-transform duration-300">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">
+              <h3 className="text-2xl font-bold mb-4 text-emerald-800 dark:text-emerald-300">
                 Helpful Guides
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Learn how to solve cryptograms yourself with our comprehensive tutorials and tips.
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Master the art of solving cryptograms with our comprehensive tutorials, tips, and step-by-step solving techniques.
               </p>
               <Link 
                 href="/guides" 
-                className="text-emerald-600 dark:text-emerald-400 font-medium hover:text-emerald-800 dark:hover:text-emerald-300"
+                className="inline-flex items-center text-emerald-600 dark:text-emerald-400 font-medium hover:text-emerald-800 dark:hover:text-emerald-300 group-hover:translate-x-1 transition-transform duration-300"
               >
-                Read our guides →
+                Read our guides
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
               </Link>
             </div>
           </div>
@@ -127,7 +167,7 @@ export default function Home() {
                 <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-blue-400/20 dark:bg-blue-300/10"></div>
                 <div className="absolute right-8 bottom-4 w-12 h-12 rounded-full bg-blue-400/20 dark:bg-blue-300/10"></div>
                 <h3 className="font-bold text-xl relative z-10">Cryptoquip</h3>
-                <p className="text-sm text-blue-100 relative z-10">King Features Syndicate</p>
+                <p className="text-sm text-blue-100 relative z-10">Updated Daily</p>
               </div>
               <div className="p-5">
                 <div className="flex items-center mb-4">
@@ -158,7 +198,7 @@ export default function Home() {
                 <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-purple-400/20 dark:bg-purple-300/10"></div>
                 <div className="absolute right-8 bottom-4 w-12 h-12 rounded-full bg-purple-400/20 dark:bg-purple-300/10"></div>
                 <h3 className="font-bold text-xl relative z-10">Celebrity Cipher</h3>
-                <p className="text-sm text-purple-100 relative z-10">Tribune Content Agency</p>
+                <p className="text-sm text-purple-100 relative z-10">Updated Daily</p>
               </div>
               <div className="p-5">
                 <div className="flex items-center mb-4">
@@ -189,7 +229,7 @@ export default function Home() {
                 <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-emerald-400/20 dark:bg-emerald-300/10"></div>
                 <div className="absolute right-8 bottom-4 w-12 h-12 rounded-full bg-emerald-400/20 dark:bg-emerald-300/10"></div>
                 <h3 className="font-bold text-xl relative z-10">Cryptoquote</h3>
-                <p className="text-sm text-emerald-100 relative z-10">Universal Uclick</p>
+                <p className="text-sm text-emerald-100 relative z-10">Updated Daily</p>
               </div>
               <div className="p-5">
                 <div className="flex items-center mb-4">
@@ -230,63 +270,46 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Latest Guide Preview */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      {/* Blog Post Preview Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-800">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-800 dark:text-white">
-            Featured Guide
-          </h2>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              Cryptogram Guides
+            </h2>
+            <div className="h-1 w-24 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 rounded-full mx-auto mb-4"></div>
+            <p className="text-center text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Learn cryptogram solving techniques from our comprehensive guides and tutorials
+            </p>
+          </div>
           
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-8 shadow-md">
-            <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">
-              How to Solve Cryptograms: A Beginner's Guide
-            </h3>
-            <div className="flex flex-col md:flex-row gap-8">
-              <div className="md:w-2/3">
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Cryptograms may seem daunting at first, but with a few simple techniques, you can quickly start deciphering these letter-substitution puzzles...
-                </p>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">
-                  The most common approach is to look for patterns in the encrypted text. Single-letter words in English are almost always 'a' or 'i'. The most common three-letter words are typically 'the', 'and', or 'for'. By identifying these patterns...
-                </p>
-                <Link 
-                  href="/guides/how-to-solve-cryptograms" 
-                  className="text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-800 dark:hover:text-indigo-300 inline-flex items-center"
-                >
-                  Read the full guide
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                  </svg>
-                </Link>
-              </div>
-              <div className="md:w-1/3 flex justify-center items-center">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded text-center">
-                      <span className="text-indigo-800 dark:text-indigo-300 font-mono">A → X</span>
-                    </div>
-                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded text-center">
-                      <span className="text-indigo-800 dark:text-indigo-300 font-mono">T → N</span>
-                    </div>
-                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded text-center">
-                      <span className="text-indigo-800 dark:text-indigo-300 font-mono">E → Q</span>
-                    </div>
-                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded text-center">
-                      <span className="text-indigo-800 dark:text-indigo-300 font-mono">I → R</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {blogPosts.map((post, index) => (
+              <Link key={post.id} href={`/guides/${post.id}`} className="group">
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full">
+                  <div className="aspect-video bg-gray-200 dark:bg-gray-600 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 group-hover:opacity-0 transition-opacity duration-300"></div>
+                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded">
+                      {post.category}
                     </div>
                   </div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200">
+                      {post.title}
+                    </h3>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </Link>
+            ))}
           </div>
           
           <div className="mt-10 text-center">
             <Link 
               href="/guides" 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 inline-flex items-center"
+              className="inline-flex items-center px-6 py-3 rounded-lg border-2 border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-medium hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-400 dark:hover:text-gray-900 transition-all duration-200"
             >
-              Explore All Guides
-              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              View All Guides
+              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
               </svg>
             </Link>
