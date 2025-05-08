@@ -170,13 +170,13 @@ export default function DailySolutionPage({ params }: { params: { type: string }
           
           setSolutionData(formattedData);
         } else {
-          // Use fallback data if no API endpoint is available
-          setSolutionData(fallbackSolutions[solutionType]);
+          // Throw error if no API endpoint is available
+          throw new Error(`No API endpoint available for ${solutionType}`);
         }
       } catch (err) {
         console.error('Error fetching solution:', err);
-        setError('Failed to load today\'s solution. Using fallback data.');
-        setSolutionData(fallbackSolutions[solutionType]);
+        setError(`Unable to load today's ${solutionType} solution. Please try again later.`);
+        setSolutionData(null);
       } finally {
         setLoading(false);
       }
@@ -250,20 +250,45 @@ export default function DailySolutionPage({ params }: { params: { type: string }
     );
   }
 
-  if (!solutionData) {
+  if (error || !solutionData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg text-center">
-          <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Solution Not Found</h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            We couldn't find a daily solution for "{params.type}".
-          </p>
-          <Link 
-            href="/daily" 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
-          >
-            Back to Daily Solutions
-          </Link>
+      <div className="max-w-5xl mx-auto p-6 fade-in">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mb-4">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Solution Unavailable</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-lg mx-auto">
+              {error || `We couldn't find today's solution for "${solutionType}". Please try again later.`}
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-4">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Try Again
+            </button>
+            <Link 
+              href="/daily" 
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            >
+              Back to Daily Solutions
+            </Link>
+            <Link 
+              href="/solver"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+            >
+              Try the Solver Instead
+            </Link>
+          </div>
         </div>
       </div>
     );
