@@ -59,6 +59,39 @@ const decodeWord = (cipherWord: string, mapping: Record<string, string>): string
     .join('');
 };
 
+// Create a function to generate mapping from cipher and plaintext
+const generateLetterMapping = (cipher: string, plaintext: string): Record<string, string> => {
+  const mapping: Record<string, string> = {};
+  
+  // Split into words
+  const cipherWords = cipher.match(/\b[\w']+\b/g) || [];
+  const plainWords = plaintext.match(/\b[\w']+\b/g) || [];
+  
+  // Process each word pair
+  for (let i = 0; i < Math.min(cipherWords.length, plainWords.length); i++) {
+    const cipherWord = cipherWords[i].toUpperCase();
+    const plainWord = plainWords[i].toLowerCase();
+    
+    // Map each letter in the word
+    for (let j = 0; j < Math.min(cipherWord.length, plainWord.length); j++) {
+      const cipherChar = cipherWord[j];
+      const plainChar = plainWord[j];
+      
+      // Only map if both are letters and not already mapped to a different letter
+      if (/[A-Z]/.test(cipherChar) && /[a-z]/.test(plainChar)) {
+        // Check if this mapping contradicts an existing one
+        if (mapping[cipherChar] && mapping[cipherChar] !== plainChar) {
+          console.warn(`Conflicting mapping for ${cipherChar}: ${mapping[cipherChar]} vs ${plainChar}`);
+        } else {
+          mapping[cipherChar] = plainChar;
+        }
+      }
+    }
+  }
+  
+  return mapping;
+};
+
 export default function SolverInterface() {
   const [cipher, setCipher] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,9 +100,15 @@ export default function SolverInterface() {
   const [activeMappingTab, setActiveMappingTab] = useState<'words' | 'letters'>('words');
   const [error, setError] = useState<string | null>(null);
 
-  // Process solution to create word mappings
+  // Process solution to create word mappings and letter mapping
   useEffect(() => {
     if (solution) {
+      // For letter mapping - generate from cipher and solution text directly 
+      // instead of relying on the API's key which might be in different format
+      const letterMapping = generateLetterMapping(cipher, solution.plaintext);
+      setSolution({...solution, key: formatMappingForDisplay(letterMapping)});
+      
+      // Word mappings code - keep existing logic
       const mapping = parseSubstitutionKey(solution.key);
       
       // Split by words and punctuation while preserving them
@@ -125,6 +164,13 @@ export default function SolverInterface() {
       });
     }
   }, [solution, cipher]);
+
+  // Format the mapping for display in the UI
+  const formatMappingForDisplay = (mapping: Record<string, string>): string => {
+    const cipherChars = Object.keys(mapping).sort().join('');
+    const plainChars = Object.keys(mapping).sort().map(key => mapping[key]).join('');
+    return `${cipherChars} -> ${plainChars}`;
+  };
 
   const handleSolve = async () => {
     if (!cipher.trim()) {
@@ -220,11 +266,17 @@ export default function SolverInterface() {
   const renderLetterMapping = () => {
     if (!solution) return null;
     
+    // Parse the mapping from the solution key that we've generated
     const mapping = parseSubstitutionKey(solution.key);
+    
+    // Directly generate mapping from cipher and plaintext for more accuracy
+    const directMapping = generateLetterMapping(cipher, solution.plaintext);
+    
+    // Use the direct mapping which will be more accurate
     return (
       <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-6 shadow-lg">
         <h3 className="font-bold text-xl mb-4 text-indigo-700 dark:text-indigo-400">Letter Mapping</h3>
-        <LetterMappings mapping={mapping} />
+        <LetterMappings mapping={directMapping} />
       </div>
     );
   };
