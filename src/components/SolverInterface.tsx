@@ -277,8 +277,8 @@ export default function SolverInterface() {
     
     // Use the direct mapping which will be more accurate
     return (
-      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-6 shadow-lg">
-        <h3 className="font-bold text-xl mb-4 text-indigo-700 dark:text-indigo-400">Letter Mapping</h3>
+      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-4 sm:p-6 shadow-lg">
+        <h3 className="font-bold text-xl mb-3 sm:mb-4 text-indigo-700 dark:text-indigo-400">Letter Mapping</h3>
         <LetterMappings mapping={directMapping} />
       </div>
     );
@@ -289,25 +289,25 @@ export default function SolverInterface() {
     if (!solution || wordMappings.length === 0) return null;
     
     return (
-      <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl p-6 shadow-lg">
-        <h3 className="font-bold text-xl mb-4 text-purple-700 dark:text-purple-400">Word-by-Word Translation</h3>
+      <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl p-4 sm:p-6 shadow-lg">
+        <h3 className="font-bold text-xl mb-3 sm:mb-4 text-purple-700 dark:text-purple-400">Word-by-Word Translation</h3>
         
-        <div className="flex flex-wrap gap-3 justify-center">
+        <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
           {wordMappings.map((mapping, index) => (
             <div 
               key={`word-${index}`}
-              className={`flex flex-col items-center bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 transition-all duration-500 transform ${mapping.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              className={`flex flex-col items-center bg-white dark:bg-gray-800 rounded-lg shadow-md p-2 sm:p-3 transition-all duration-500 transform ${mapping.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
-              <div className="bg-purple-100 dark:bg-purple-900/50 px-3 py-1 rounded-t-md w-full text-center">
-                <span className="font-mono text-purple-700 dark:text-purple-300">{mapping.cipherWord}</span>
+              <div className="bg-purple-100 dark:bg-purple-900/50 px-2 sm:px-3 py-1 rounded-t-md w-full text-center">
+                <span className="font-mono text-sm sm:text-base text-purple-700 dark:text-purple-300">{mapping.cipherWord}</span>
               </div>
-              <div className="h-8 flex items-center justify-center">
-                <svg className="h-6 w-6 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="h-6 sm:h-8 flex items-center justify-center">
+                <svg className="h-4 w-4 sm:h-6 sm:w-6 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
               </div>
-              <div className="bg-pink-100 dark:bg-pink-900/50 px-3 py-1 rounded-b-md w-full text-center">
-                <span className="font-bold text-pink-700 dark:text-pink-300">{mapping.plainWord}</span>
+              <div className="bg-pink-100 dark:bg-pink-900/50 px-2 sm:px-3 py-1 rounded-b-md w-full text-center">
+                <span className="font-bold text-sm sm:text-base text-pink-700 dark:text-pink-300">{mapping.plainWord}</span>
               </div>
             </div>
           ))}
@@ -421,19 +421,19 @@ export default function SolverInterface() {
               <nav className="flex">
                 <button
                   onClick={() => setActiveMappingTab('words')}
-                  className={`px-4 py-3 text-sm font-medium ${activeMappingTab === 'words' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                  className={`px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium ${activeMappingTab === 'words' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Word Mapping
                 </button>
                 <button
                   onClick={() => setActiveMappingTab('letters')}
-                  className={`px-4 py-3 text-sm font-medium ${activeMappingTab === 'letters' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                  className={`px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium ${activeMappingTab === 'letters' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Letter Mapping
                 </button>
               </nav>
             </div>
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               {activeMappingTab === 'words' ? renderWordMapping() : renderLetterMapping()}
             </div>
           </div>
