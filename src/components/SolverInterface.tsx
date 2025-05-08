@@ -168,7 +168,10 @@ export default function SolverInterface() {
   // Format the mapping for display in the UI
   const formatMappingForDisplay = (mapping: Record<string, string>): string => {
     const cipherChars = Object.keys(mapping).sort().join('');
-    const plainChars = Object.keys(mapping).sort().map(key => mapping[key]).join('');
+    const plainChars = Object.keys(mapping).sort().map(key => {
+      // Capitalize the plain text letter to match the cipher letter capitalization
+      return mapping[key].toUpperCase();
+    }).join('');
     return `${cipherChars} -> ${plainChars}`;
   };
 
@@ -317,8 +320,6 @@ export default function SolverInterface() {
   const renderFullSolution = () => {
     if (!solution) return null;
     
-    const mapping = parseSubstitutionKey(solution.key);
-    
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl mb-6">
         <div className="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-800 dark:to-teal-700 px-6 py-4">
@@ -328,11 +329,6 @@ export default function SolverInterface() {
           <p className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-800 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-medium">
             {solution.plaintext}
           </p>
-          
-          {/* Display Letter Mappings with proper styling */}
-          <div className="mt-6 bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <LetterMappings mapping={mapping} />
-          </div>
         </div>
       </div>
     );

@@ -23,7 +23,7 @@ export default function LetterMappings({ mapping, className = '' }: LetterMappin
           >
             <span className="font-bold text-lg text-indigo-600 dark:text-indigo-300">{cipherLetter}</span>
             <span className="mx-2 text-gray-500">→</span>
-            <span className="font-bold text-lg text-blue-600 dark:text-blue-300">{plainLetter}</span>
+            <span className="font-bold text-lg text-blue-600 dark:text-blue-300">{plainLetter.toUpperCase()}</span>
           </div>
         ))}
       </div>
