@@ -97,7 +97,7 @@ export default function SolverInterface() {
   const [loading, setLoading] = useState(false);
   const [solution, setSolution] = useState<Solution | null>(null);
   const [wordMappings, setWordMappings] = useState<WordMapping[]>([]);
-  const [activeMappingTab, setActiveMappingTab] = useState<'words' | 'letters'>('words');
+  const [activeMappingTab, setActiveMappingTab] = useState<'words' | 'letters'>('letters');
   const [error, setError] = useState<string | null>(null);
 
   // Process solution to create word mappings and letter mapping

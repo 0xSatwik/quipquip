@@ -356,8 +356,8 @@ export default function DailySolutionPage({ params }: { params: { type: string }
   // Render letter mapping
   const renderLetterMapping = () => {
     return (
-      <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl p-6 shadow-lg">
-        <h3 className="font-bold text-xl mb-4 text-blue-700 dark:text-blue-400">Letter Mapping</h3>
+      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-xl p-6 shadow-lg mb-6">
+        <h3 className="font-bold text-xl mb-4 text-indigo-700 dark:text-indigo-400">Letter Mapping</h3>
         <LetterMappings mapping={letterMapping} />
       </div>
     );
@@ -423,9 +423,6 @@ export default function DailySolutionPage({ params }: { params: { type: string }
                   </span>
                 </div>
               )}
-              
-              {/* Add Letter Mappings */}
-              <LetterMappings mapping={letterMapping} className="mt-4" />
             </div>
           </div>
         </div>
@@ -435,16 +432,16 @@ export default function DailySolutionPage({ params }: { params: { type: string }
           <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex">
               <button
-                className="px-4 py-3 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                className="px-6 py-3 text-base font-medium border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
               >
-                Mapping Visualization
+                Letter & Word Mappings
               </button>
             </nav>
           </div>
           
           <div className="p-4 space-y-6">
-            {renderWordMapping()}
             {renderLetterMapping()}
+            {renderWordMapping()}
           </div>
         </div>
         
