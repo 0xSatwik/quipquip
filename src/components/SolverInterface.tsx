@@ -299,8 +299,8 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl shadow-lg p-8 border border-indigo-100 dark:border-indigo-900">
+    <div className="max-w-5xl mx-auto p-2 sm:p-6">
+      <div className="bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl shadow-lg p-4 sm:p-8 border border-indigo-100 dark:border-indigo-900">
         <div className="relative mb-8">
           <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-200 dark:bg-indigo-900 rounded-full opacity-20"></div>
           <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-purple-200 dark:bg-purple-900 rounded-full opacity-20"></div>
@@ -330,7 +330,7 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
         )}
       
         <div className="mb-8">
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-indigo-950 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900 shadow-md">
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-indigo-950 rounded-xl p-3 sm:p-6 border border-indigo-100 dark:border-indigo-900 shadow-md">
             <h2 className="text-xl font-bold text-indigo-700 dark:text-indigo-400 mb-4 flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
@@ -368,7 +368,7 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
         <div className="mb-6">
           <button 
             onClick={() => setShowSettings(!showSettings)} 
-            className="flex items-center justify-between w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
+            className="flex items-center justify-between w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
           >
             <span className="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-200">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -482,7 +482,7 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
           <div className="mb-6">
             <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Manual Solving</h3>
             
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-indigo-950 border border-indigo-200 dark:border-indigo-900 rounded-xl p-6 shadow-lg relative">
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-indigo-950 border border-indigo-200 dark:border-indigo-900 rounded-xl p-3 sm:p-6 shadow-lg relative">
               {/* Cipher Text Display */}
               <div className="mb-8">
                 <h4 className="text-lg font-medium text-indigo-700 dark:text-indigo-400 mb-3 inline-flex items-center">
@@ -609,7 +609,7 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
           <div className="mb-6" ref={resultsRef}>
             <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Auto Solve Results</h3>
             
-            <div className="bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-green-950 border border-green-200 dark:border-green-900 rounded-xl p-6 shadow-lg relative">
+            <div className="bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-green-950 border border-green-200 dark:border-green-900 rounded-xl p-3 sm:p-6 shadow-lg relative">
               {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-20 h-20 bg-green-200 dark:bg-green-900 rounded-full opacity-20 -mt-10 -mr-10"></div>
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-teal-200 dark:bg-teal-900 rounded-full opacity-20 -mb-8 -ml-8"></div>
@@ -640,7 +640,7 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
                 <div className="mb-4 mt-1">
                   <div className="relative">
                     <div className="bg-gradient-to-r from-emerald-400 to-teal-500 dark:from-emerald-600 dark:to-teal-700 p-1 rounded-xl shadow-lg transform hover:scale-[1.01] transition-all duration-300">
-                      <div className="bg-white dark:bg-gray-900 p-2 sm:p-4 rounded-lg">
+                      <div className="bg-white dark:bg-gray-900 p-2 rounded-lg">
                         <div className="mb-1 flex justify-between items-center">
                           <h4 className="text-lg md:text-xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
@@ -653,7 +653,7 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
                           </span>
                         </div>
                         
-                        <div className="p-2 sm:p-3 bg-emerald-50 dark:bg-gray-800 border border-emerald-100 dark:border-emerald-900 rounded-lg shadow-inner">
+                        <div className="p-2 bg-emerald-50 dark:bg-gray-800 border border-emerald-100 dark:border-emerald-900 rounded-lg shadow-inner">
                           <p className="font-mono text-base sm:text-lg tracking-wide text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
                             {(() => {
                               try {
@@ -694,8 +694,8 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
 
               {/* Other Results table */}
               {results.length > 1 && (
-                <div className="mt-8">
-                  <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                <div className="mt-4 sm:mt-8">
+                  <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
@@ -720,8 +720,8 @@ Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
                                   : 'bg-white dark:bg-gray-800'
                               } hover:bg-green-100 dark:hover:bg-green-900 transition-colors duration-150`}
                             >
-                              <td className="py-3 px-4 border-r border-green-100 dark:border-green-800 font-medium text-green-700 dark:text-green-400">{result.score}</td>
-                              <td className="py-3 px-4 font-mono text-gray-800 dark:text-gray-200">
+                              <td className="py-2 px-2 sm:py-3 sm:px-4 border-r border-green-100 dark:border-green-800 font-medium text-green-700 dark:text-green-400">{result.score}</td>
+                              <td className="py-2 px-2 sm:py-3 sm:px-4 font-mono text-gray-800 dark:text-gray-200">
                                 {(() => {
                                   try {
                                     // Same algorithm as before
