@@ -1,444 +1,905 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import LetterMappings from './LetterMappings';
-
-// Cloudflare Worker URL - direct connection
-const WORKER_URL = 'https://cryptoquip-solver.litebloggingpro.workers.dev';
-
-// Define types for API responses
-interface SolveResponse {
-  id: string;
-}
-
-interface Solution {
-  plaintext: string;
-  key: string;
-}
-
-interface SolutionData {
-  solutions: Solution[];
-  result: number;
-}
-
-interface WordMapping {
-  cipherWord: string;
-  plainWord: string;
-  isVisible: boolean;
-}
-
-// Create a function to parse the substitution key
-const parseSubstitutionKey = (key: string): Record<string, string> => {
-  const mapping: Record<string, string> = {};
-  // Key format is typically "ABCDE...Z -> abcde...z"
-  const parts = key.split(' -> ');
-  if (parts.length === 2) {
-    const cipherChars = parts[0].split('');
-    const plainChars = parts[1].split('');
-    
-    for (let i = 0; i < cipherChars.length; i++) {
-      if (i < plainChars.length) {
-        mapping[cipherChars[i]] = plainChars[i];
-      }
-    }
-  }
-  return mapping;
-};
-
-// Function to apply mapping to a cipher word
-const decodeWord = (cipherWord: string, mapping: Record<string, string>): string => {
-  return cipherWord
-    .split('')
-    .map(char => {
-      // Preserve punctuation and spaces
-      if (/[A-Za-z]/.test(char)) {
-        return mapping[char.toUpperCase()] || mapping[char.toLowerCase()] || char;
-      }
-      return char;
-    })
-    .join('');
-};
-
-// Create a function to generate mapping from cipher and plaintext
-const generateLetterMapping = (cipher: string, plaintext: string): Record<string, string> => {
-  const mapping: Record<string, string> = {};
-  
-  // Split into words
-  const cipherWords = cipher.match(/\b[\w']+\b/g) || [];
-  const plainWords = plaintext.match(/\b[\w']+\b/g) || [];
-  
-  // Process each word pair
-  for (let i = 0; i < Math.min(cipherWords.length, plainWords.length); i++) {
-    const cipherWord = cipherWords[i].toUpperCase();
-    const plainWord = plainWords[i].toLowerCase();
-    
-    // Map each letter in the word
-    for (let j = 0; j < Math.min(cipherWord.length, plainWord.length); j++) {
-      const cipherChar = cipherWord[j];
-      const plainChar = plainWord[j];
-      
-      // Only map if both are letters and not already mapped to a different letter
-      if (/[A-Z]/.test(cipherChar) && /[a-z]/.test(plainChar)) {
-        // Check if this mapping contradicts an existing one
-        if (mapping[cipherChar] && mapping[cipherChar] !== plainChar) {
-          console.warn(`Conflicting mapping for ${cipherChar}: ${mapping[cipherChar]} vs ${plainChar}`);
-        } else {
-          mapping[cipherChar] = plainChar;
-        }
-      }
-    }
-  }
-  
-  return mapping;
-};
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function SolverInterface() {
-  const [cipher, setCipher] = useState('');
+  const [cipherText, setCipherText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [solution, setSolution] = useState<Solution | null>(null);
-  const [wordMappings, setWordMappings] = useState<WordMapping[]>([]);
-  const [activeMappingTab, setActiveMappingTab] = useState<'words' | 'letters'>('letters');
   const [error, setError] = useState<string | null>(null);
+  const [iterations, setIterations] = useState(100);
+  const [maxResults, setMaxResults] = useState(10);
+  const [dictionaryWeight, setDictionaryWeight] = useState(5);
+  const [progress, setProgress] = useState(0);
+  const [results, setResults] = useState<Array<{score: string, key: string, text: string}>>([]);
+  const [manualMode, setManualMode] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
+  const [letterMap, setLetterMap] = useState<Record<string, string>>({});
+  const workerRef = useRef<Worker | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Process solution to create word mappings and letter mapping
+  // Initialize the worker
   useEffect(() => {
-    if (solution) {
-      // For letter mapping - generate from cipher and solution text directly 
-      // instead of relying on the API's key which might be in different format
-      const letterMapping = generateLetterMapping(cipher, solution.plaintext);
-      setSolution({...solution, key: formatMappingForDisplay(letterMapping)});
-      
-      // Word mappings code - keep existing logic
-      const mapping = parseSubstitutionKey(solution.key);
-      
-      // Split by words and punctuation while preserving them
-      const cipherWords = cipher.match(/\b[\w']+\b|\s+|[^\w\s]/g) || [];
-      const plainWords = solution.plaintext.match(/\b[\w']+\b|\s+|[^\w\s]/g) || [];
-      
-      // Create word mappings
-      const mappings: WordMapping[] = [];
-      let plainIndex = 0;
-      
-      for (let i = 0; i < cipherWords.length; i++) {
-        const cipherWord = cipherWords[i];
-        // Skip spaces and punctuation for display
-        if (/^\s+$/.test(cipherWord) || /^[^\w\s]$/.test(cipherWord)) {
-          continue;
-        }
-        
-        // Find corresponding plain word
-        if (plainIndex < plainWords.length) {
-          // Skip spaces and punctuation in plain text
-          while (plainIndex < plainWords.length && 
-                 (/^\s+$/.test(plainWords[plainIndex]) || /^[^\w\s]$/.test(plainWords[plainIndex]))) {
-            plainIndex++;
-          }
-          
-          if (plainIndex < plainWords.length) {
-            mappings.push({
-              cipherWord,
-              plainWord: plainWords[plainIndex],
-              isVisible: false
-            });
-            plainIndex++;
-          }
-        }
+    if (typeof window !== 'undefined') {
+      try {
+        // Create a worker
+        workerRef.current = new Worker('/mono-cryptanalysis.js');
+        setupWorkerListeners();
+      } catch (err) {
+        console.error('Error initializing worker:', err);
+        setError('Could not load the solver components. Using simple frequency analysis instead.');
       }
-      
-      // Set initial mappings with all hidden
-      setWordMappings(mappings);
-      
-      // Reveal mappings one by one with a delay
-      let delay = 300;
-      mappings.forEach((_, index) => {
-        setTimeout(() => {
-          setWordMappings(prev => {
-            const updated = [...prev];
-            if (updated[index]) {
-              updated[index] = { ...updated[index], isVisible: true };
-            }
-            return updated;
-          });
-        }, delay);
-        delay += 100;
-      });
     }
-  }, [solution, cipher]);
+    
+    return () => {
+      // Clean up worker when component unmounts
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
+  }, []);
 
-  // Format the mapping for display in the UI
-  const formatMappingForDisplay = (mapping: Record<string, string>): string => {
-    const cipherChars = Object.keys(mapping).sort().join('');
-    const plainChars = Object.keys(mapping).sort().map(key => {
-      // Capitalize the plain text letter to match the cipher letter capitalization
-      return mapping[key].toUpperCase();
-    }).join('');
-    return `${cipherChars} -> ${plainChars}`;
+  // Reset letter mapping when cipher text changes or mode changes
+  useEffect(() => {
+    if (manualMode) {
+      // Reset letter mapping when starting manual mode or changing cipher text
+      setLetterMap({});
+    }
+  }, [manualMode, cipherText]);
+
+  // Get unique letters from cipher text
+  const getUniqueLetters = () => {
+    const letters = new Set<string>();
+    cipherText.toUpperCase().split('').forEach(char => {
+      if (/[A-Z]/.test(char)) {
+        letters.add(char);
+      }
+    });
+    return Array.from(letters).sort();
   };
 
-  const handleSolve = async () => {
-    if (!cipher.trim()) {
-      setError('Please enter a cipher.');
+  // Get solution text from letter mapping
+  const getSolutionText = () => {
+    return cipherText.split('').map(char => {
+      const upperChar = char.toUpperCase();
+      if (/[A-Z]/.test(upperChar)) {
+        return letterMap[upperChar] || '_';
+      }
+      return char; // Keep all non-alphabetic characters as they are
+    }).join('');
+  };
+
+  // Handle letter substitution change
+  const handleLetterChange = (cipherLetter: string, value: string) => {
+    setLetterMap(prev => {
+      const newMap = { ...prev };
+      if (value === '') {
+        delete newMap[cipherLetter];
+      } else {
+        // Only keep the first character and convert to uppercase
+        newMap[cipherLetter] = value.charAt(0).toUpperCase();
+      }
+      return newMap;
+    });
+  };
+
+  // Start manual solving
+  const startManualSolving = () => {
+    if (!cipherText.trim()) {
+      setError('Please enter a cipher text.');
       return;
     }
 
-    setLoading(true);
     setError(null);
-    setSolution(null);
-    setWordMappings([]);
+    setManualMode(true);
+    setAutoMode(false);
+    setLetterMap({});
+  };
 
-    try {
-      // Step 1: Submit cipher directly to the Cloudflare Worker
-      console.log(`Submitting cipher to Cloudflare Worker at ${WORKER_URL}/solve`);
-      const solveRes = await fetch(`${WORKER_URL}/solve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ciphertext: cipher.trim()
-        }),
-        // These options ensure we don't use relative URLs
-        mode: 'cors',
-        cache: 'no-cache',
-        redirect: 'follow'
-      });
-
-      if (!solveRes.ok) {
-        const errorData = await solveRes.json().catch(() => ({ error: 'Failed to parse error response' }));
-        throw new Error(errorData.error || `Failed to solve cipher: ${solveRes.status}`);
-      }
-
-      const solveData = await solveRes.json() as SolveResponse;
-      console.log('Received solve response from worker:', solveData);
-
-      if (!solveData.id) {
-        throw new Error('No ID returned from API');
-      }
-
-      // Step 2: Poll for results directly from the Cloudflare Worker
-      let statusData: SolutionData | null = null;
-      let attempts = 0;
-      const maxAttempts = 20;
-
-      while (attempts < maxAttempts) {
-        console.log(`Checking status (attempt ${attempts + 1}/${maxAttempts}) at ${WORKER_URL}/status`);
-        const statusRes = await fetch(`${WORKER_URL}/status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ id: solveData.id }),
-          // These options ensure we don't use relative URLs
-          mode: 'cors',
-          cache: 'no-cache',
-          redirect: 'follow'
-        });
-
-        if (!statusRes.ok) {
-          const errorData = await statusRes.json().catch(() => ({ error: 'Failed to parse error response' }));
-          throw new Error(errorData.error || `Failed to get solution status: ${statusRes.status}`);
-        }
-
-        statusData = await statusRes.json() as SolutionData;
-        console.log('Received status response from worker:', statusData);
-
-        if (statusData.result === 0) {
-          break;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        attempts++;
-      }
-
-      if (!statusData || !statusData.solutions || statusData.solutions.length === 0) {
-        throw new Error('No solution found.');
-      }
-
-      // Step 3: Display best solution
-      const bestSolution = statusData.solutions[0];
-      setSolution(bestSolution);
-    } catch (error) {
-      console.error('Error in handleSolve:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred');
-    } finally {
-      setLoading(false);
+  // Start auto solving
+  const startAutoSolving = () => {
+    if (!cipherText.trim()) {
+      setError('Please enter a cipher text.');
+      return;
     }
+    
+    // First cancel any ongoing solve operation and reset the worker
+    if (loading) {
+      cancelAutoSolving();
+    }
+    
+    // Ensure worker is available and reset
+    if (!workerRef.current) {
+      try {
+        // Create a new worker if it doesn't exist
+        workerRef.current = new Worker('/mono-cryptanalysis.js');
+        setupWorkerListeners();
+      } catch (err) {
+        console.error('Error creating worker:', err);
+        setError('Solver not available. Please try again later.');
+        return;
+      }
+    } else {
+      // Terminate and recreate worker to ensure clean state
+      workerRef.current.terminate();
+      workerRef.current = new Worker('/mono-cryptanalysis.js');
+      setupWorkerListeners();
+    }
+    
+    // Setup state for new solve operation
+    setError(null);
+    setManualMode(false);
+    setAutoMode(true);
+    setLoading(true);
+    setProgress(0);
+    setResults([]);
+    
+    // Short delay to ensure worker is ready before sending message
+    setTimeout(() => {
+      if (workerRef.current) {
+        // Send the solve request to the worker
+        workerRef.current.postMessage({
+          inputText: cipherText,
+          lang: 'en', // Always English
+          iterations: iterations,
+          maxResults: maxResults,
+          dictionaryWeight: dictionaryWeight,
+          spacingMode: 0, // Always Automatic
+          reportInterval: 10,
+          fastConvergence: true,
+          mode: 'general'
+        });
+      }
+    }, 100);
   };
 
-  // Create a visual mapping from the solution key
-  const renderLetterMapping = () => {
-    if (!solution) return null;
+  // Function to set up worker message listeners
+  const setupWorkerListeners = () => {
+    if (!workerRef.current) return;
     
-    // Parse the mapping from the solution key that we've generated
-    const mapping = parseSubstitutionKey(solution.key);
+    // Handle messages from the worker
+    workerRef.current.onmessage = (e) => {
+      const data = e.data;
+      
+      if (data.progress !== undefined) {
+        setProgress(data.progress);
+      }
+      
+      if (data.items) {
+        setResults(data.items);
+      }
+      
+      if (data.isFinal) {
+        setLoading(false);
+        // Scroll to results section when solution is ready
+        if (resultsRef.current) {
+          setTimeout(() => {
+            resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 300); // Small delay to ensure state updates and rendering are complete
+        }
+      }
+    };
     
-    // Directly generate mapping from cipher and plaintext for more accuracy
-    const directMapping = generateLetterMapping(cipher, solution.plaintext);
-    
-    // Use the direct mapping which will be more accurate
-    return (
-      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-4 sm:p-6 shadow-lg">
-        <h3 className="font-bold text-xl mb-3 sm:mb-4 text-indigo-700 dark:text-indigo-400">Letter Mapping</h3>
-        <LetterMappings mapping={directMapping} />
-      </div>
-    );
+    // Signal that the worker is ready
+    workerRef.current.postMessage({ ready: true });
   };
 
-  // Render word-by-word mapping
-  const renderWordMapping = () => {
-    if (!solution || wordMappings.length === 0) return null;
+  // Cancel auto solving
+  const cancelAutoSolving = () => {
+    if (workerRef.current) {
+      // Terminate the worker to stop processing
+      workerRef.current.terminate();
+      
+      // Create a new worker instance
+      workerRef.current = new Worker('/mono-cryptanalysis.js');
+      setupWorkerListeners();
+    }
     
-    return (
-      <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl p-4 sm:p-6 shadow-lg">
-        <h3 className="font-bold text-xl mb-3 sm:mb-4 text-purple-700 dark:text-purple-400">Word-by-Word Translation</h3>
-        
-        <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
-          {wordMappings.map((mapping, index) => (
-            <div 
-              key={`word-${index}`}
-              className={`flex flex-col items-center bg-white dark:bg-gray-800 rounded-lg shadow-md p-2 sm:p-3 transition-all duration-500 transform ${mapping.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-            >
-              <div className="bg-purple-100 dark:bg-purple-900/50 px-2 sm:px-3 py-1 rounded-t-md w-full text-center">
-                <span className="font-mono text-sm sm:text-base text-purple-700 dark:text-purple-300">{mapping.cipherWord}</span>
-              </div>
-              <div className="h-6 sm:h-8 flex items-center justify-center">
-                <svg className="h-4 w-4 sm:h-6 sm:w-6 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </div>
-              <div className="bg-pink-100 dark:bg-pink-900/50 px-2 sm:px-3 py-1 rounded-b-md w-full text-center">
-                <span className="font-bold text-sm sm:text-base text-pink-700 dark:text-pink-300">{mapping.plainWord}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    setLoading(false);
+    setAutoMode(false);
   };
 
-  // Render the full solution with formatting
-  const renderFullSolution = () => {
-    if (!solution) return null;
+  // Highlight frequent patterns
+  const highlightFrequentPatterns = () => {
+    // Find repeated patterns of 2-4 letters
+    const patterns: Record<string, number> = {};
+    const text = cipherText.toUpperCase().replace(/[^A-Z]/g, '');
     
-    return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl mb-6">
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-800 dark:to-teal-700 px-6 py-4">
-          <h3 className="font-bold text-xl text-white">Complete Solution</h3>
-        </div>
-        <div className="p-6">
-          <p className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-800 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-medium">
-            {solution.plaintext}
-          </p>
-        </div>
-      </div>
-    );
+    // Look for patterns of length 2-4
+    for (let len = 2; len <= 4; len++) {
+      for (let i = 0; i <= text.length - len; i++) {
+        const pattern = text.substr(i, len);
+        // Only track valid patterns (all letters)
+        if (/^[A-Z]+$/.test(pattern)) {
+          patterns[pattern] = (patterns[pattern] || 0) + 1;
+        }
+      }
+    }
+    
+    // Filter to patterns that appear at least twice
+    const frequentPatterns = Object.keys(patterns)
+      .filter(p => patterns[p] >= 2)
+      .sort((a, b) => patterns[b] - patterns[a])
+      .slice(0, 10); // Top 10 most frequent
+    
+    // Display these patterns
+    alert(`Most frequent patterns in your cipher:
+${frequentPatterns.map(p => `${p}: appears ${patterns[p]} time${patterns[p] > 1 ? 's' : ''}`).join('\n')}
+
+Common English patterns:
+THE, AND, THAT, HAVE, WITH, THIS, FROM, THEY, WILL
+Common letter pairs: TH, HE, AN, IN, ER, ON, AT, ND, ST, ES, EN`);
+  };
+
+  // Suggest common words - provide hints for common English patterns
+  const suggestCommonWords = () => {
+    const suggestions = [
+      { word: 'the', hint: 'Most common 3-letter word' },
+      { word: 'and', hint: 'Common conjunction' },
+      { word: 'that', hint: 'Common 4-letter word' },
+      { word: 'have', hint: 'Common verb' },
+      { word: 'with', hint: 'Common preposition' },
+      { word: 'this', hint: 'Common demonstrative' },
+      { word: 'from', hint: 'Common preposition' },
+      { word: 'they', hint: 'Common pronoun' },
+      { word: 'will', hint: 'Common modal verb' },
+    ];
+    
+    // Get frequency analysis of the cipher
+    const freq: Record<string, number> = {};
+    cipherText.toUpperCase().split('').forEach(char => {
+      if (/[A-Z]/.test(char)) {
+        freq[char] = (freq[char] || 0) + 1;
+      }
+    });
+    
+    // Sort by frequency
+    const sortedChars = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+    
+    // Create a suggestion message
+    let message = 'Based on frequency analysis:\n\n';
+    
+    // Add the most frequent letters
+    message += 'Most frequent letters in your cipher:\n';
+    sortedChars.slice(0, 6).forEach(char => {
+      message += `${char}: ${freq[char]} occurrences\n`;
+    });
+    
+    message += '\nMost frequent letters in English: E, T, A, O, I, N\n\n';
+    
+    message += 'Common words to look for:\n';
+    suggestions.forEach(({ word, hint }) => {
+      message += `${word.toUpperCase()} - ${hint}\n`;
+    });
+    
+    alert(message);
+  };
+
+  // Reset the solution
+  const resetKey = () => {
+    setLetterMap({});
+  };
+
+  // Text manipulation functions
+  const removeSpaces = () => {
+    setCipherText(prev => prev.replace(/\s+/g, ''));
+  };
+
+  const lettersOnly = () => {
+    setCipherText(prev => prev.replace(/[^A-Za-z]/g, ''));
+  };
+
+  const toUpperCase = () => {
+    setCipherText(prev => prev.toUpperCase());
+  };
+
+  const toLowerCase = () => {
+    setCipherText(prev => prev.toLowerCase());
   };
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-800 dark:to-blue-700 rounded-t-2xl p-6 shadow-lg">
-        <h2 className="text-2xl md:text-3xl font-bold text-white text-center mb-2">
-          Cryptogram Solver
-        </h2>
-        <p className="text-indigo-100 text-center">
-          Unlock the secrets of cryptograms with advanced AI assistance
-        </p>
-      </div>
-      
-      <div className="bg-white dark:bg-slate-800 rounded-b-2xl shadow-lg p-6 mb-8">
-        <div className="mb-6">
-          <label htmlFor="cipher" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Enter your cryptogram:
-          </label>
-          <textarea
-            id="cipher"
-            value={cipher}
-            onChange={(e) => setCipher(e.target.value)}
-            className="w-full p-4 border border-indigo-300 dark:border-indigo-700 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-            rows={4}
-            placeholder="Enter your cryptogram here..."
-          />
-        </div>
-
-        <button
-          onClick={handleSolve}
-          disabled={loading}
-          className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-70"
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Processing...</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-              </svg>
-              <span>Solve Cryptogram</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {loading && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 mb-8 text-center">
-          <div className="flex flex-col items-center justify-center">
-            <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 dark:border-indigo-700 dark:border-t-indigo-400 rounded-full animate-spin mb-4"></div>
-            <h3 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-2">Decrypting Your Cryptogram</h3>
-            <p className="text-gray-600 dark:text-gray-400">Our AI is analyzing patterns and solving your puzzle...</p>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-600 rounded-lg p-4 mb-8">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-700 dark:text-red-400">Error Solving Cryptogram</h3>
-              <p className="mt-1 text-sm text-red-600 dark:text-red-300">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {solution && (
-        <div className="space-y-6">
-          {/* Complete solution display */}
-          {renderFullSolution()}
+      <div className="bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl shadow-lg p-8 border border-indigo-100 dark:border-indigo-900">
+        <div className="relative mb-8">
+          <div className="absolute -top-6 -right-6 w-24 h-24 bg-indigo-200 dark:bg-indigo-900 rounded-full opacity-20"></div>
+          <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-purple-200 dark:bg-purple-900 rounded-full opacity-20"></div>
           
-          {/* Tabs for different mapping views */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
-            <div className="border-b border-gray-200 dark:border-gray-700">
-              <nav className="flex">
-                <button
-                  onClick={() => setActiveMappingTab('words')}
-                  className={`px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium ${activeMappingTab === 'words' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                >
-                  Word Mapping
-                </button>
-                <button
-                  onClick={() => setActiveMappingTab('letters')}
-                  className={`px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium ${activeMappingTab === 'letters' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                >
-                  Letter Mapping
-                </button>
-              </nav>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 mb-4">
+            Cryptoquip Solver
+          </h1>
+          
+          <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed max-w-3xl mb-2">
+            Solve <span className="font-semibold text-indigo-700 dark:text-indigo-400">Cryptoquips</span>, 
+            <span className="font-semibold text-purple-700 dark:text-purple-400"> Cryptograms</span>, 
+            <span className="font-semibold text-blue-700 dark:text-blue-400"> Cryptoquotes</span>, and 
+            <span className="font-semibold text-teal-700 dark:text-teal-400"> Celebrity Ciphers</span> with our powerful solver tool.
+          </p>
+          
+          <p className="text-gray-600 dark:text-gray-400 text-base">
+            Our advanced algorithm helps you decode substitution puzzles where each letter consistently 
+            represents another letter. Perfect for puzzle enthusiasts looking to solve newspaper cryptograms 
+            and online cipher challenges quickly.
+          </p>
+        </div>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+      
+        <div className="mb-8">
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-indigo-950 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900 shadow-md">
+            <h2 className="text-xl font-bold text-indigo-700 dark:text-indigo-400 mb-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+              </svg>
+              Enter your cipher text:
+            </h2>
+            <div className="relative">
+              <textarea
+                className="w-full p-4 border-2 border-indigo-200 dark:border-indigo-800 rounded-lg bg-white dark:bg-gray-800 
+                         text-gray-800 dark:text-gray-200 text-lg font-mono shadow-inner
+                         focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-700 focus:outline-none
+                         transition-all duration-200"
+                rows={5}
+                value={cipherText}
+                onChange={(e) => setCipherText(e.target.value)}
+                spellCheck="false"
+                placeholder="ENTER YOUR CRYPTOQUIP, CRYPTOGRAM, OR CRYPTOQUOTE HERE..."
+                style={{ resize: 'vertical' }}
+              />
+              <div className="absolute -bottom-1 -right-1 w-16 h-16 bg-indigo-200 dark:bg-indigo-900 rounded-full opacity-20"></div>
+              <div className="absolute -top-1 -left-1 w-12 h-12 bg-purple-200 dark:bg-purple-900 rounded-full opacity-20"></div>
             </div>
-            <div className="p-3 sm:p-4">
-              {activeMappingTab === 'words' ? renderWordMapping() : renderLetterMapping()}
+            
+            <div className="mt-4 text-sm text-indigo-700 dark:text-indigo-400 italic">
+              <p className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Paste your encoded text exactly as it appears in the puzzle.
+              </p>
             </div>
           </div>
         </div>
-      )}
+        
+        <div className="mb-6">
+          <button 
+            onClick={() => setShowSettings(!showSettings)} 
+            className="flex items-center justify-between w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
+          >
+            <span className="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-200">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+              </svg>
+              Advanced Settings
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-200 ${showSettings ? 'transform rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+          
+          {showSettings && (
+            <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md animate-slideDown">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="iterations">
+                    Iterations:
+                  </label>
+                  <input 
+                    type="number"
+                    id="iterations"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                    min="1"
+                    max="10000"
+                    value={iterations}
+                    onChange={(e) => setIterations(parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Higher values may produce better results but take longer (100-500 recommended)</p>
+                </div>
+                
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="maxResults">
+                    Max Results:
+                  </label>
+                  <input 
+                    type="number"
+                    id="maxResults"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                    min="1"
+                    max="1000"
+                    value={maxResults}
+                    onChange={(e) => setMaxResults(parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Number of potential solutions to display</p>
+                </div>
+                
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="dictionaryWeight">
+                    Dictionary Weight:
+                  </label>
+                  <input 
+                    type="number"
+                    id="dictionaryWeight"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                    min="0"
+                    max="100"
+                    value={dictionaryWeight}
+                    onChange={(e) => setDictionaryWeight(parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">How much to prioritize dictionary words (5-10 recommended)</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button 
+            className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 mr-3"
+            onClick={startManualSolving}
+            disabled={loading}
+          >
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              </svg>
+              Manual Solving
+            </span>
+          </button>
+
+          <button
+            className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+            onClick={startAutoSolving}
+            disabled={loading}
+            style={{ display: loading ? 'none' : 'inline-flex' }}
+          >
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.415l.707-.708zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
+              </svg>
+              Auto Solve
+            </span>
+          </button>
+          
+          <button 
+            className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+            onClick={cancelAutoSolving}
+            style={{ display: loading ? 'inline-flex' : 'none' }}
+          >
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              Cancel
+            </span>
+          </button>
+        </div>
+
+        {manualMode && (
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Manual Solving</h3>
+            
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-indigo-950 border border-indigo-200 dark:border-indigo-900 rounded-xl p-6 shadow-lg relative">
+              {/* Cipher Text Display */}
+              <div className="mb-8">
+                <h4 className="text-lg font-medium text-indigo-700 dark:text-indigo-400 mb-3 inline-flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                  Cipher Text:
+                </h4>
+                <div className="p-4 border border-indigo-200 dark:border-indigo-800 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-mono text-xl text-center tracking-wider shadow-inner">
+                  {cipherText}
+                </div>
+              </div>
+              
+              {/* Solution Display */}
+              <div className="mb-8">
+                <h4 className="text-lg font-medium text-green-700 dark:text-green-500 mb-3 inline-flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                  </svg>
+                  Solution:
+                </h4>
+                <div className="p-4 border border-green-200 dark:border-green-900 rounded-lg bg-white dark:bg-gray-900 text-green-800 dark:text-green-400 font-mono text-xl text-center tracking-wider shadow-inner min-h-16">
+                  {getSolutionText()}
+                </div>
+              </div>
+              
+              {/* Letter Substitution Inputs */}
+              <div className="mb-8">
+                <h4 className="text-lg font-medium text-purple-700 dark:text-purple-400 mb-4 inline-flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  Enter letter substitutions:
+                </h4>
+                
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-3 bg-white dark:bg-gray-900 p-5 rounded-lg border border-purple-100 dark:border-purple-900 shadow-inner">
+                  {getUniqueLetters().map(letter => (
+                    <div key={letter} className="flex flex-col items-center group">
+                      <div className="text-2xl font-bold mb-2 text-indigo-700 dark:text-indigo-400">{letter}</div>
+                      <input
+                        type="text"
+                        maxLength={1}
+                        value={letterMap[letter] || ''}
+                        onChange={(e) => handleLetterChange(letter, e.target.value)}
+                        className="w-12 h-12 text-center border-2 border-indigo-300 dark:border-indigo-700 rounded-lg text-lg font-bold 
+                          focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-50 focus:outline-none
+                          transition-all duration-200 transform group-hover:scale-110 shadow-sm 
+                          bg-white dark:bg-gray-800 text-purple-800 dark:text-purple-300"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Letters Used */}
+              <div className="mb-8">
+                <h4 className="text-lg font-medium text-blue-700 dark:text-blue-400 mb-3 inline-flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                  </svg>
+                  Letters Used:
+                </h4>
+                <div className="flex flex-wrap gap-2 bg-white dark:bg-gray-900 p-4 rounded-lg border border-blue-100 dark:border-blue-900 shadow-inner">
+                  {Array.from('abcdefghijklmnopqrstuvwxyz').map(letter => {
+                    const isUsed = Object.values(letterMap).includes(letter);
+                    return (
+                      <div 
+                        key={letter} 
+                        className={`w-8 h-8 flex items-center justify-center rounded-full text-center font-bold transition-all duration-300 transform ${
+                          isUsed 
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white dark:from-blue-600 dark:to-indigo-700 dark:text-white scale-110 shadow-md' 
+                            : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {letter}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Help Buttons */}
+              <div className="mt-8 flex flex-wrap gap-3 justify-center">
+                <button
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 flex items-center"
+                  onClick={highlightFrequentPatterns}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 9a2 2 0 114 0 2 2 0 01-4 0z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a4 4 0 00-3.446 6.032l-2.261 2.26a1 1 0 101.414 1.415l2.261-2.261A4 4 0 1011 5z" clipRule="evenodd" />
+                  </svg>
+                  Find Patterns
+                </button>
+                <button
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 flex items-center"
+                  onClick={suggestCommonWords}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Word Hints
+                </button>
+                <button
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 flex items-center"
+                  onClick={resetKey}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                  </svg>
+                  Reset Key
+                </button>
+              </div>
+
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-200 dark:bg-indigo-900 rounded-full opacity-20 -mt-10 -mr-10"></div>
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-purple-200 dark:bg-purple-900 rounded-full opacity-20 -mb-8 -ml-8"></div>
+            </div>
+          </div>
+        )}
+
+        {autoMode && (
+          <div className="mb-6" ref={resultsRef}>
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Auto Solve Results</h3>
+            
+            <div className="bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-green-950 border border-green-200 dark:border-green-900 rounded-xl p-6 shadow-lg relative">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-20 h-20 bg-green-200 dark:bg-green-900 rounded-full opacity-20 -mt-10 -mr-10"></div>
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-teal-200 dark:bg-teal-900 rounded-full opacity-20 -mb-8 -ml-8"></div>
+              
+              {/* Progress bar */}
+              <div className="mb-6">
+                <h4 className="text-lg font-medium text-green-700 dark:text-green-500 mb-3 inline-flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                  Progress: {progress}%
+                </h4>
+                
+                <div className="w-full h-5 bg-green-100 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-400 to-teal-500 dark:from-green-500 dark:to-teal-600 rounded-full transition-all duration-300 flex items-center justify-center"
+                    style={{ width: `${progress}%` }}
+                  >
+                    {progress > 10 && (
+                      <span className="text-xs text-white font-semibold">{progress}%</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Best Match Highlight (displayed when results are available) */}
+              {results.length > 0 && (
+                <div className="mb-4 mt-1">
+                  <div className="relative">
+                    <div className="bg-gradient-to-r from-emerald-400 to-teal-500 dark:from-emerald-600 dark:to-teal-700 p-1 rounded-xl shadow-lg transform hover:scale-[1.01] transition-all duration-300">
+                      <div className="bg-white dark:bg-gray-900 p-2 sm:p-4 rounded-lg">
+                        <div className="mb-1 flex justify-between items-center">
+                          <h4 className="text-lg md:text-xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                            </svg>
+                            Top Solution
+                          </h4>
+                          <span className="bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 px-2 py-1 rounded-full text-sm sm:text-base font-bold">
+                            Score: {results[0].score}
+                          </span>
+                        </div>
+                        
+                        <div className="p-2 sm:p-3 bg-emerald-50 dark:bg-gray-800 border border-emerald-100 dark:border-emerald-900 rounded-lg shadow-inner">
+                          <p className="font-mono text-base sm:text-lg tracking-wide text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
+                            {(() => {
+                              try {
+                                // Same algorithm as the table rows
+                                const upperCipherText = cipherText.toUpperCase();
+                                const upperSolutionText = results[0].text.toUpperCase();
+                                
+                                let cipherAlpha = '';
+                                let positions: number[] = [];
+                                
+                                for (let i = 0; i < upperCipherText.length; i++) {
+                                  if (/[A-Z]/.test(upperCipherText[i])) {
+                                    cipherAlpha += upperCipherText[i];
+                                    positions.push(i);
+                                  }
+                                }
+                                
+                                const solutionAlpha = upperSolutionText.replace(/[^A-Z]/g, '');
+                                const resultArray = upperCipherText.split('');
+                                
+                                for (let i = 0; i < positions.length && i < solutionAlpha.length; i++) {
+                                  resultArray[positions[i]] = solutionAlpha[i];
+                                }
+                                
+                                return resultArray.join('');
+                              } catch (error) {
+                                console.error('Error in best solution mapping:', error);
+                                return results[0].text.toUpperCase();
+                              }
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Other Results table */}
+              {results.length > 1 && (
+                <div className="mt-8">
+                  <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    Alternative Solutions
+                  </h4>
+                  <div className="overflow-hidden rounded-xl border border-green-200 dark:border-green-800 shadow-md">
+                    <div className="overflow-x-auto bg-white dark:bg-gray-900">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-green-500 to-teal-600 text-white">
+                            <th className="py-3 px-4 text-left font-semibold w-24 border-r border-green-400 dark:border-green-700">Score</th>
+                            <th className="py-3 px-4 text-left font-semibold">Solution Text</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-green-100 dark:divide-green-900">
+                          {results.slice(1).map((result, index) => (
+                            <tr 
+                              key={index} 
+                              className={`${
+                                index % 2 === 0 
+                                  ? 'bg-green-50 dark:bg-gray-900' 
+                                  : 'bg-white dark:bg-gray-800'
+                              } hover:bg-green-100 dark:hover:bg-green-900 transition-colors duration-150`}
+                            >
+                              <td className="py-3 px-4 border-r border-green-100 dark:border-green-800 font-medium text-green-700 dark:text-green-400">{result.score}</td>
+                              <td className="py-3 px-4 font-mono text-gray-800 dark:text-gray-200">
+                                {(() => {
+                                  try {
+                                    // Same algorithm as before
+                                    const upperCipherText = cipherText.toUpperCase();
+                                    const upperSolutionText = result.text.toUpperCase();
+                                    
+                                    let cipherAlpha = '';
+                                    let positions: number[] = [];
+                                    
+                                    for (let i = 0; i < upperCipherText.length; i++) {
+                                      if (/[A-Z]/.test(upperCipherText[i])) {
+                                        cipherAlpha += upperCipherText[i];
+                                        positions.push(i);
+                                      }
+                                    }
+                                    
+                                    const solutionAlpha = upperSolutionText.replace(/[^A-Z]/g, '');
+                                    const resultArray = upperCipherText.split('');
+                                    
+                                    for (let i = 0; i < positions.length && i < solutionAlpha.length; i++) {
+                                      resultArray[positions[i]] = solutionAlpha[i];
+                                    }
+                                    
+                                    return resultArray.join('');
+                                  } catch (error) {
+                                    console.error('Error in solution mapping:', error);
+                                    return result.text.toUpperCase();
+                                  }
+                                })()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {results.length > 0 && (
+                <div className="mt-5 text-center">
+                  <p className="text-green-700 dark:text-green-400 italic">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    Higher scores indicate more likely solutions.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        </div>
+      
+      <style jsx>{`
+        .crypto-tool-letter {
+          display: inline-block;
+          margin: 0.1em;
+          padding: 0.2em 0.1em;
+          line-height: 1.1em;
+          text-align: center;
+          cursor: pointer;
+          font-weight: bold;
+        }
+        
+        .crypto-tool-letter.selected {
+          background-color: #ffff00;
+          color: #000000;
+        }
+        
+        .crypto-tool-letter-mapped {
+          display: block;
+          font-size: 0.8em;
+          color: #666;
+        }
+        
+        .crypto-tool-letter-container {
+          display: inline-block;
+          text-align: center;
+          margin: 0 0.1em;
+        }
+        
+        .crypto-tool-letter-input {
+          width: 1.6em;
+          text-align: center;
+          padding-left: 0;
+          padding-right: 0;
+        }
+        
+        .crypto-tool-key-item {
+          display: flex;
+          align-items: center;
+          margin-bottom: 0.5em;
+        }
+        
+        .crypto-tool-key-cipher {
+          font-weight: bold;
+          margin-right: 0.5em;
+        }
+        
+        /* New styles for the improved manual solving interface */
+        .cipher-text-container {
+          line-height: 1.6;
+          text-align: center;
+          font-size: 16px;
+          word-wrap: break-word;
+          max-width: 100%;
+          padding: 5px;
+        }
+        
+        .cipher-letter {
+          display: inline-block;
+          font-weight: normal;
+          cursor: pointer;
+          margin: 0 1px;
+        }
+        
+        .cipher-letter.selected {
+          background-color: yellow;
+          padding: 0 2px;
+        }
+        
+        .non-letter {
+          display: inline-block;
+          margin: 0 1px;
+        }
+        
+        .key-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 15px 0;
+          width: 100%;
+        }
+        
+        .key-mapping-row {
+          display: flex;
+          margin: 2px 0;
+          width: 100px;
+        }
+        
+        .key-cipher-letter {
+          display: inline-block;
+          width: 25px;
+          font-size: 18px;
+          font-weight: bold;
+          margin-right: 15px;
+          text-align: left;
+          cursor: pointer;
+        }
+        
+        .key-cipher-letter.selected {
+          background-color: yellow;
+          padding: 0 2px;
+        }
+        
+        .key-plain-letter {
+          display: inline-block;
+          width: 25px;
+          font-size: 18px;
+          text-transform: lowercase;
+        }
+
+        @keyframes slideDown {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-slideDown {
+          animation: slideDown 0.2s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 } 

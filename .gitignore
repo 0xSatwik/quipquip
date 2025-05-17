@@ -30,6 +30,7 @@ yarn-error.log*
 # Exclude old directories and files
 /cryptoquip-solver/
 /worker/
+/online-solver/
 server.js
 solver.js
 index.html
